@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayFlow - Digital Wallet</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f0f1a; color: white; min-height: 100vh; }
+        .navbar { background: #1a1a2e; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 24px; font-weight: bold; color: #6c63ff; }
+        .container { max-width: 600px; margin: 50px auto; padding: 20px; }
+        .card { background: #1a1a2e; border-radius: 15px; padding: 30px; margin-bottom: 20px; }
+        .balance { font-size: 48px; font-weight: bold; color: #6c63ff; text-align: center; }
+        .balance-label { text-align: center; color: #888; margin-top: 5px; }
+        input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #0f0f1a; color: white; font-size: 16px; margin: 10px 0; }
+        .btn { width: 100%; padding: 12px; border-radius: 8px; border: none; font-size: 16px; cursor: pointer; margin: 5px 0; font-weight: bold; }
+        .btn-primary { background: #6c63ff; color: white; }
+        .btn-success { background: #2ecc71; color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn:hover { opacity: 0.9; }
+        .message { padding: 10px; border-radius: 8px; margin: 10px 0; text-align: center; display: none; }
+        .success { background: #1a3a2a; color: #2ecc71; }
+        .error { background: #3a1a1a; color: #e74c3c; }
+        h2 { margin-bottom: 15px; color: #6c63ff; }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="logo">💸 PayFlow</div>
+        <div id="nav-user"></div>
+    </div>
+
+    <div class="container">
+        <!-- Login Card -->
+        <div class="card" id="login-card">
+            <h2>Welcome to PayFlow</h2>
+            <input type="text" id="username" placeholder="Enter username" />
+            <button class="btn btn-primary" onclick="createWallet()">Create / Login</button>
+            <div class="message" id="login-msg"></div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard" style="display:none;">
+            <div class="card">
+                <div class="balance" id="balance">₹0.00</div>
+                <div class="balance-label">Current Balance</div>
+            </div>
+
+            <div class="card">
+                <h2>💰 Deposit</h2>
+                <input type="number" id="deposit-amount" placeholder="Enter amount" />
+                <button class="btn btn-success" onclick="deposit()">Deposit</button>
+                <div class="message" id="deposit-msg"></div>
+            </div>
+
+            <div class="card">
+                <h2>💸 Withdraw</h2>
+                <input type="number" id="withdraw-amount" placeholder="Enter amount" />
+                <button class="btn btn-danger" onclick="withdraw()">Withdraw</button>
+                <div class="message" id="withdraw-msg"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = '';
+
+        async function createWallet() {
+            const username = document.getElementById('username').value;
+            if (!username) return showMsg('login-msg', 'Enter username!', 'error');
+            
+            const res = await fetch('/api/wallet/create/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username })
+            });
+            const data = await res.json();
+            currentUser = username;
+            document.getElementById('nav-user').innerText = '👤 ' + username;
+            document.getElementById('login-card').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            updateBalance();
+        }
+
+        async function updateBalance() {
+            const res = await fetch(`/api/wallet/balance/${currentUser}/`);
+            const data = await res.json();
+            document.getElementById('balance').innerText = '₹' + parseFloat(data.balance).toFixed(2);
+        }
+
+        async function deposit() {
+            const amount = document.getElementById('deposit-amount').value;
+            if (!amount) return showMsg('deposit-msg', 'Enter amount!', 'error');
+            
+            const res = await fetch('/api/wallet/deposit/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: currentUser, amount: parseFloat(amount) })
+            });
+            const data = await res.json();
+            showMsg('deposit-msg', data.message, 'success');
+            updateBalance();
+            document.getElementById('deposit-amount').value = '';
+        }
+
+        async function withdraw() {
+            const amount = document.getElementById('withdraw-amount').value;
+            if (!amount) return showMsg('withdraw-msg', 'Enter amount!', 'error');
+            
+            const res = await fetch('/api/wallet/withdraw/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: currentUser, amount: parseFloat(amount) })
+            });
+            const data = await res.json();
+            if (data.error) {
+                showMsg('withdraw-msg', data.error, 'error');
+            } else {
+                showMsg('withdraw-msg', data.message, 'success');
+                updateBalance();
+            }
+            document.getElementById('withdraw-amount').value = '';
+        }
+
+        function showMsg(id, msg, type) {
+            const el = document.getElementById(id);
+            el.innerText = msg;
+            el.className = 'message ' + type;
+            el.style.display = 'block';
+            setTimeout(() => el.style.display = 'none', 3000);
+        }
+    </script>
+</body>
+</html>

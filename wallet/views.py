@@ -17,8 +17,8 @@ def create_wallet(request):
 def deposit(request):
     if request.method == 'POST':
         data = json.loads(request.body)
-        wallet = Wallet.objects.select_for_update().get(user__username=data['username'])
         with transaction.atomic():
+            wallet = Wallet.objects.select_for_update().get(user__username=data['username'])
             wallet.balance += data['amount']
             wallet.save()
             Transaction.objects.create(wallet=wallet, amount=data['amount'], transaction_type='CREDIT')
