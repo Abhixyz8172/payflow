@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PayFlow - Digital Wallet</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: #0f0f1a; color: white; min-height: 100vh; }
@@ -23,6 +24,7 @@
         .success { background: #1a3a2a; color: #2ecc71; }
         .error { background: #3a1a1a; color: #e74c3c; }
         h2 { margin-bottom: 15px; color: #6c63ff; }
+        
     </style>
 </head>
 <body>
@@ -60,6 +62,23 @@
                 <button class="btn btn-danger" onclick="withdraw()">Withdraw</button>
                 <div class="message" id="withdraw-msg"></div>
             </div>
+            <div class="card">
+                <h2>↗️ Transfer</h2>
+                <input type="text" id="to-username" placeholder="Receiver username" />
+                <input type="number" id="transfer-amount" placeholder="Enter amount" />
+                <button class="btn btn-primary" onclick="transfer()">Transfer</button>
+                <div class="message" id="transfer-msg"></div>
+
+            <div class="card">
+                <h2>📋 Transaction History</h2>
+                <button class="btn btn-primary" onclick="loadHistory()">Load History</button>
+                <div id="history-list" style="margin-top: 15px;"></div>
+            <div class="card">
+                <h2>📊 Analytics</h2>
+                <canvas id="myChart" width="400" height="200"></canvas>
+            </div>
+            </div>
+            </div>
         </div>
     </div>
 
@@ -87,7 +106,10 @@
             const res = await fetch(`/api/wallet/balance/${currentUser}/`);
             const data = await res.json();
             document.getElementById('balance').innerText = '₹' + parseFloat(data.balance).toFixed(2);
+            loadChart();
         }
+    
+
 
         async function deposit() {
             const amount = document.getElementById('deposit-amount').value;
@@ -130,6 +152,88 @@
             el.style.display = 'block';
             setTimeout(() => el.style.display = 'none', 3000);
         }
+        async function transfer() {
+            const to_username = document.getElementById('to-username').value;
+            const amount = document.getElementById('transfer-amount').value;
+            if (!to_username || !amount) return showMsg('transfer-msg', 'Fill all fields!', 'error');
+    
+        const res = await fetch('/api/wallet/transfer/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                from_username: currentUser, 
+                to_username: to_username, 
+                amount: parseFloat(amount) 
+        })
+    });
+        const data = await res.json();
+            if (data.error) {
+            showMsg('transfer-msg', data.error, 'error');
+             } else {
+            showMsg('transfer-msg', data.message, 'success');
+            updateBalance();
+             }
+        document.getElementById('transfer-amount').value = '';
+        document.getElementById('to-username').value = '';
+}  
+
+        async function loadHistory() {
+            const res = await fetch(`/api/wallet/history/${currentUser}/`);
+            const data = await res.json();
+    
+            if (data.error) {
+        document.getElementById('history-list').innerHTML = '<p style="color:red">Error loading history</p>';
+              return;
+                   }
+    
+        if (data.transactions.length === 0) {
+             document.getElementById('history-list').innerHTML = '<p style="color:#888">No transactions yet</p>';
+              return;
+                    }
+    
+       let html = '';
+       data.transactions.forEach(t => {
+        const color = t.transaction_type === 'CREDIT' ? '#2ecc71' : '#e74c3c';
+        const sign = t.transaction_type === 'CREDIT' ? '+' : '-';
+        const date = new Date(t.timestamp).toLocaleString();
+        html += `
+            <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #333;">
+                <span style="color:#888">${date}</span>
+                <span style="color:${color}">${sign}₹${t.amount}</span>
+                <span style="color:${color}">${t.transaction_type}</span>
+            </div>
+        `;
+    });
+    document.getElementById('history-list').innerHTML = html;
+}
+
+       async function loadChart() {
+    const res = await fetch(`/api/wallet/history/${currentUser}/`);
+    const data = await res.json();
+    
+    let credit = 0, debit = 0;
+    data.transactions.forEach(t => {
+        if (t.transaction_type === 'CREDIT') credit += parseFloat(t.amount);
+        else debit += parseFloat(t.amount);
+    });
+
+    const ctx = document.getElementById('myChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Total Deposited', 'Total Withdrawn'],
+            datasets: [{
+                data: [credit, debit],
+                backgroundColor: ['#2ecc71', '#e74c3c'],
+            }]
+        },
+        options: {
+            plugins: {
+                legend: { labels: { color: 'white' } }
+            }
+        }
+    });
+}
     </script>
 </body>
 </html>
