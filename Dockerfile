@@ -9,4 +9,4 @@ COPY . .
 
 EXPOSE 10000
 
-CMD gunicorn payflow.wsgi:application --bind 0.0.0.0:$PORT
+CMD python manage.py migrate --noinput && gunicorn payflow.wsgi:application --bind 0.0.0.0:$PORT
