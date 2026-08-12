@@ -22,6 +22,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 def home(request):
     return render(request, 'index.html')
 
+
 urlpatterns = [
     path('', home, name='home'),
     path('admin/', admin.site.urls),
